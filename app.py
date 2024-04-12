@@ -16,7 +16,6 @@ app.config['MYSQL_DB'] = config.MYSQL_DB
 
 mysql = MySQL(app)
 from flask_mail import Mail, Message
-
 @app.route('/send_email', methods=['POST'])
 def send_ema():
     password = request.form.get('password')
@@ -32,6 +31,7 @@ def send_ema():
     app.config['MAIL_PASSWORD'] = password
     app.config['MAIL_USE_SSL'] = True
     app.config['MAIL_DEFAULT_SENDER'] = session.get('usermailid')
+    sender=session.get('usermailid')
     mail = Mail(app)
     if template_selected == 'template1':
         try:
@@ -85,6 +85,7 @@ def send_ema():
                 msg.body = modified_content
                 mail.send(msg)
 
+            # Perform database operations to log email sending status and recipients
             cur.execute("INSERT INTO Email (Email_subject, Email_content, DeliveryStatus, Timestamp, SMTP_serveraddress, User_id, Template_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                         (subject, content, 'Delivered', datetime.now(), 'smtp.gmail.com', 1, 1))  # Replace 'your_smtp_server_address' with the actual SMTP server address, and 1 with the actual user and template IDs
             emaillog_id = cur.lastrowid
@@ -100,7 +101,8 @@ def send_ema():
             return 'Email sent successfully!'
         except Exception as e:
             return f'Failed to send email. Error: {str(e)}'
-
+        
+        
 def fetch_recipient_id(recipient_email):
     try:
         cur = mysql.connection.cursor()
