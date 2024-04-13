@@ -17,7 +17,7 @@ app.config['MYSQL_DB'] = config.MYSQL_DB
 mysql = MySQL(app)
 from flask_mail import Mail, Message
 @app.route('/send_email', methods=['POST'])
-def send_ema():
+def send_email():
     password = request.form.get('password')
     template_selected = request.form.get('template') 
     recipients = request.form.get('recipients')  
@@ -111,8 +111,8 @@ def fetch_recipient_id(recipient_email):
         cur.close()
         return recipient_id[0] if recipient_id else None
     except Exception as e:
-        return None  # Return None if there's an error or recipient not found
-
+        return None  
+    
 def is_group(email):
     cur = mysql.connection.cursor()
     cur.execute("SELECT Group_id FROM Email_Group WHERE Group_address = %s", (email,))
@@ -135,88 +135,6 @@ def get_recipient_name(email):
     recipient = cur.fetchone()
     cur.close()
     return recipient[0] if recipient else ''
-
-
-# @app.route('/send_email', methods=['POST'])
-# def send_email():
-#     template_selected = request.form.get('template')
-#     recipients = request.form.get('recipients')  # Get selected group and recipient addresses
-#     recipient_emails = recipients.split(",") if recipients else []  # Split the string of recipients by comma or initialize an empty list
-#     subject = request.form['subject']
-#     content = request.form['content']
-#     sender = 'divyamadineni@iitgn.ac.in'  # Specify sender
-#     try:
-#         all_recipient_emails = []  # Store all individual recipient addresses
-#         for recipient_email in recipient_emails:
-#             is_group_email, group_id = is_group(recipient_email)  # Check if the recipient is a group and get the group_id
-#             if is_group_email:
-#                 group_members = retrieve_group_members(group_id)  # Retrieve group members from database using group_id
-#                 for member_email in group_members:
-#                     msg = Message(subject, recipients=[member_email], sender=sender)
-#                     msg.body = content if template_selected == 'template1' else content.replace('{{name}}', get_recipient_name(member_email))  # Replace {{name}} with recipient name if template is 1
-#                     mail.send(msg)
-#                     all_recipient_emails.append(member_email)  # Add recipient's email to the list
-#             else:
-#                 msg = Message(subject, recipients=[recipient_email], sender=sender)
-#                 msg.body = content if template_selected == 'template1' else content.replace('{{name}}', get_recipient_name(recipient_email))  # Replace {{name}} with recipient name if template is 1
-#                 mail.send(msg)
-#                 all_recipient_emails.append(recipient_email)  # Add recipient's email to the list
-
-#         if not all_recipient_emails:
-#             return 'No recipients have been added.', 400  # Return an error if no recipients are added
-
-#         # Insert email details into the database
-#         cur = mysql.connection.cursor()
-#         cur.execute("INSERT INTO Email (Email_subject, Email_content, DeliveryStatus, Timestamp, SMTP_serveraddress, User_id, Template_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-#                     (subject, content, 'Delivered', datetime.now(), 'smtp.gmail.com', 1, 1))  # Replace 'your_smtp_server_address' with the actual SMTP server address, and 1 with the actual user and template IDs
-#         emaillog_id = cur.lastrowid
-
-#         for recipient_email in all_recipient_emails:
-#             is_group_email, group_id = is_group(recipient_email)  # Check if the recipient is a group and get the group_id
-#             if is_group_email:
-#                 cur.execute("INSERT INTO Group_receiver(EmailLog_id,Group_id) VALUES (%s,%s)", (emaillog_id, group_id))
-#             else:
-#                 recipient_id = fetch_recipient_id(recipient_email)
-           
-#                 cur.execute("INSERT INTO Individual_receiver(EmailLog_id,Recipient_id) VALUES (%s,%s)", (emaillog_id, recipient_id))
-#         mysql.connection.commit()
-#         cur.close()
-#         return 'Email sent successfully!'
-#     except Exception as e:
-#         return f'Failed to send email. Error: {str(e)}', 500
-
-# def is_group(email_address):
-#     cur = mysql.connection.cursor()
-#     cur.execute("SELECT Group_id FROM Email_Group WHERE group_address = %s", (email_address,))
-#     result = cur.fetchone()
-#     cur.close()
-#     return result is not None, result[0] if result else None
-
-# def retrieve_group_members(group_address):
-#     cur = mysql.connection.cursor()
-#     cur.execute("SELECT rl.RecipientEmail_id FROM Email_Group eg JOIN Memberof m ON eg.Group_id = m.Group_id JOIN RecipientList rl ON m.Recipient_id = rl.Recipient_id WHERE eg.Group_address = %s", (group_address,))
-#     group_members = cur.fetchall()
-#     email_addresses = [member[0] for member in group_members]
-#     cur.close()
-#     return email_addresses
-
-# def get_recipient_name(email):
-#     cur = mysql.connection.cursor()
-#     cur.execute("SELECT Recipient_name FROM RecipientList WHERE RecipientEmail_id = %s", (email,))
-#     recipient = cur.fetchone()
-#     cur.close()
-#     return recipient[0] if recipient else ''
-
-
-# def fetch_recipient_id(recipient_email):
-#     cur = mysql.connection.cursor()
-#     cur.execute("SELECT Recipient_id FROM RecipientList WHERE RecipientEmail_id = %s", (recipient_email,))
-#     result = cur.fetchone()
-#     cur.close()
-#     return result[0] if result else None
-
-
-
 
 @app.route('/sentEmails')
 def sent_emails():
@@ -268,27 +186,56 @@ def registration():
     if request.method == 'POST':
         username = request.form['username']
         email = request.form['email']
+        role = request.form['role']
         password = request.form['password']
 
         hashed_password = generate_password_hash(password)
-        app.logger.info('Received POST request to add User: User_name - %s, UserEmail_id - %s, Passwordhash - %s', username, email, hashed_password)
+        app.logger.info('Received POST request to add User: User_name - %s, UserEmail_id - %s, Role - %s, Passwordhash - %s', username, email, role, hashed_password)
         
         cur = mysql.connection.cursor()
 
         try:
-            cur.execute("INSERT INTO User(User_name, UserEmail_id, Passwordhash) VALUES (%s, %s, %s)", (username, email, hashed_password))
+            cur.execute("INSERT INTO User(User_name, UserEmail_id, Role, Passwordhash) VALUES (%s, %s, %s, %s)", (username, email, role, hashed_password))
             mysql.connection.commit()
-            app.logger.info('User added successfully: User_name - %s, UserEmail_id - %s, Passwordhash - %s', username, email, hashed_password)
+            app.logger.info('User added successfully: User_name - %s, UserEmail_id - %s, Role - %s, Passwordhash - %s', username, email, role, hashed_password)
             return redirect(url_for('login'))
         except Exception as e:
             mysql.connection.rollback()
-            error = 'Registration failed. User already exists.'  # Set an error message
+            error = 'Registration failed. User already exists.'
             app.logger.error('Error adding User to database: %s', str(e))
             return error
         finally:
             cur.close()
 
     return render_template('registration.html')
+# from flask import flash
+
+# @app.route('/registration', methods=['GET', 'POST'])
+# def registration():
+#     if request.method == 'POST':
+#         username = request.form['username']
+#         email = request.form['email']
+#         role = request.form['role']
+#         password = request.form['password']
+
+#         hashed_password = generate_password_hash(password)
+        
+#         cur = mysql.connection.cursor()
+
+#         try:
+#             cur.execute("INSERT INTO User(User_name, UserEmail_id, Role, Passwordhash) VALUES (%s, %s, %s, %s)", (username, email, role, hashed_password))
+#             mysql.connection.commit()
+#             flash('User added successfully.', 'success')
+#             return redirect(url_for('login'))
+#         except Exception as e:
+#             mysql.connection.rollback()
+#             flash('Registration failed. Please try again.', 'error')
+#             app.logger.error('Error adding User to database: %s', str(e))
+#             return render_template('registration.html'), 400
+#         finally:
+#             cur.close()
+
+#     return render_template('registration.html')
 
 @app.route('/home', methods=['GET', 'POST'])
 def home():
@@ -386,23 +333,12 @@ def delete_groups():
 
     return jsonify({'success': True})
 
-# @app.route('/rename-group', methods=['POST'])
-# def rename_group():
-#     data = request.get_json()
-#     group_id = data['group_id']
-#     new_name = data['new_name']
-#     # Add your logic to rename the group in the database
-
-
-#     return jsonify({'success': True})
-
 @app.route('/rename-group', methods=['POST'])
 def rename_group():
     data = request.get_json()
     group_id = data['group_id']
     new_name = data['new_name']
     
-    # Add your logic to rename the group in the database
     cur = mysql.connection.cursor()
     cur.execute("UPDATE Email_Group SET Group_name = %s WHERE Group_id = %s", (new_name, group_id))
     mysql.connection.commit()
@@ -416,7 +352,6 @@ def rename_recipient_seeGroups():
     recipient_id = data['recipient_id']
     new_name = data['new_name']
     
-    # Add your logic to rename the group in the database
     cur = mysql.connection.cursor()
     cur.execute("UPDATE RecipientList SET Recipient_name = %s WHERE Recipient_id = %s", (new_name, recipient_id))
     mysql.connection.commit()
@@ -458,9 +393,6 @@ def CEG():
 
 @app.route('/chooseRecipientList', methods=['GET', 'POST'])
 def CRL():
-    # if request.method == 'POST':
-    #     selected_recipients = request.form.getlist('selected_groups')
-    #     return render_template('home.html', selected_groups=selected_groups)
     cur = mysql.connection.cursor()
     cur.execute("SELECT Recipient_id, Recipient_name, RecipientEmail_id FROM RecipientList")
     recipients = cur.fetchall()
@@ -497,39 +429,31 @@ def insert_recipient():
 @app.route('/deleteRecipients', methods=['POST'])
 def delete_r():
     try:
-        # Get the list of recipient IDs to delete from the request data
         recipient_ids = request.json.get('recipientIds')
 
         if recipient_ids:
-            # Connect to the database
             cur = mysql.connection.cursor()
 
-            # Delete recipients from the Memberof table
             query_memberof = "DELETE FROM Memberof WHERE Recipient_id IN (%s)"
             query_params_memberof = ','.join(['%s'] * len(recipient_ids))
             query_memberof = query_memberof % query_params_memberof
             cur.execute(query_memberof, tuple(recipient_ids))
 
-            # Delete recipients from the RecipientList table
             query_recipientlist = "DELETE FROM RecipientList WHERE Recipient_id IN (%s)"
             query_params_recipientlist = ','.join(['%s'] * len(recipient_ids))
             query_recipientlist = query_recipientlist % query_params_recipientlist
             cur.execute(query_recipientlist, tuple(recipient_ids))
 
-            # Commit changes to the database
             mysql.connection.commit()
 
-            # Close cursor and database connection
             cur.close()
 
-            # Return success message
             return jsonify({'message': 'Recipients deleted successfully'}), 200
         else:
-            # If no recipient IDs are provided in the request data
             return jsonify({'error': 'No recipient IDs provided in the request'}), 400
 
     except Exception as e:
-        # If an error occurs during deletion
+     
         return jsonify({'error': 'Error deleting recipients: {}'.format(str(e))}), 500
 
 @app.route('/insertRecipient_RL')

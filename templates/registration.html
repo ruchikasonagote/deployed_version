@@ -36,12 +36,14 @@
 
         input[type="text"],
         input[type="email"],
-        input[type="password"] {
+        input[type="password"],
+        select {
             width: 100%;
             padding: 10px;
             font-size: 16px;
             border: 1px solid #ccc;
             border-radius: 5px;
+            box-sizing: border-box; 
         }
 
         button {
@@ -71,6 +73,14 @@
             <div class="form-group">
                 <label for="email">Email:</label>
                 <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="role">Role:</label>
+                <select id="role" name="role" required>
+                    <option value="">Select Role</option>
+                    <option value="TA">Teaching Assistant (TA)</option>
+                    <option value="Event Coordinator">Event Coordinator</option>
+                </select>
             </div>
             <div class="form-group">
                 <label for="password">Password:</label>
