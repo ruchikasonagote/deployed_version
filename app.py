@@ -6,15 +6,19 @@ from flask_cors import CORS
 from datetime import datetime
 from flask_mail import Mail, Message
 import os
+import pandas as pd
 
 app = Flask(__name__)
 CORS(app)
 app.secret_key = "b';\x90q\xe6x\x9c!iZxH\xa1\x81P\xe6f'"
+UPLOAD_FOLDER = 'uploads'
+
 
 app.config['MYSQL_HOST'] = config.MYSQL_HOST
 app.config['MYSQL_USER'] = config.MYSQL_USER
 app.config['MYSQL_PASSWORD'] = config.MYSQL_PASSWORD
 app.config['MYSQL_DB'] = config.MYSQL_DB
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 mysql = MySQL(app)
 
@@ -596,6 +600,69 @@ def insert_group():
     except Exception as e:
         mysql.connection.rollback()  # Ensures that any error does not affect the database integrity
         return jsonify({'error': str(e)}), 500
+
+@app.route('/uploadfile')
+def uploadfile():
+    group_id = request.args.get('group_id')
+    if not group_id:
+        return jsonify({'error': 'Group ID not provided'}), 400  
+    return render_template('uploadfile.html', group_id=group_id)
+
+@app.route('/upload', methods=['GET','POST'])
+def uploadFile():
+    if 'user_id' not in session:
+        return jsonify({'error': 'User not logged in'}), 401
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    group_id = request.args.get('group_id')
+    if not group_id:
+        return jsonify({'error': 'Group ID not provided'}), 400
+
+    uploaded_file = request.files['file']
+    if uploaded_file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], uploaded_file.filename)
+    uploaded_file.save(file_path)
+
+    try:
+        parsefile(file_path, session['user_id'], group_id)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    return render_template('home.html')
+
+def parsefile(file_path, user_id, group_id):
+    user_role=get_user_role()
+    if user_role == 'Teaching Assistant' :
+        col_names = ['RecipientEmail_id', 'Recipient_name', 'Gender', 'Marks']
+        csv_data = pd.read_csv(file_path, names=col_names, header=None)
+
+        cur = mysql.connection.cursor()
+        for index, row in csv_data.iterrows():
+            cur.execute("INSERT INTO RecipientList (RecipientEmail_id, User_id, Recipient_name, Gender, Marks) VALUES (%s, %s, %s, %s, %s)",
+                        (row[0], user_id, row[1], row[2], row[3]))
+            recipient_id = cur.lastrowid
+            cur.execute("INSERT INTO Memberof (Group_id, Recipient_id) VALUES (%s, %s)",
+                        (group_id, recipient_id))
+        mysql.connection.commit()
+        cur.close()
+    else :
+        col_names = ['RecipientEmail_id', 'Recipient_name', 'Gender', 'Company']
+    
+        csv_data = pd.read_csv(file_path, names=col_names, header=None)
+
+        cur = mysql.connection.cursor()
+        for index, row in csv_data.iterrows():
+            cur.execute("INSERT INTO RecipientList (RecipientEmail_id, User_id, Recipient_name, Gender, Company) VALUES (%s, %s, %s, %s, %s)",
+                        (row[0], user_id, row[1], row[2], row[3]))
+            recipient_id = cur.lastrowid
+            cur.execute("INSERT INTO Memberof (Group_id, Recipient_id) VALUES (%s, %s)",
+                        (group_id, recipient_id))
+        mysql.connection.commit()
+        cur.close()
 
 if __name__ == '__main__':
     app.run(debug=True)
