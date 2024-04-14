@@ -8,11 +8,11 @@ from flask_mail import Mail, Message
 import os
 import pandas as pd
 
+
 app = Flask(__name__)
 CORS(app)
 app.secret_key = "b';\x90q\xe6x\x9c!iZxH\xa1\x81P\xe6f'"
 UPLOAD_FOLDER = 'uploads'
-
 
 app.config['MYSQL_HOST'] = config.MYSQL_HOST
 app.config['MYSQL_USER'] = config.MYSQL_USER
@@ -21,6 +21,15 @@ app.config['MYSQL_DB'] = config.MYSQL_DB
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 mysql = MySQL(app)
+
+def lock_table():
+    cur = mysql.connection.cursor()
+    cur.execute("LOCK TABLES User WRITE")
+    return cur
+
+def unlock_table(cur):
+    cur.execute("UNLOCK TABLES")
+    cur.close()
 
 @app.route('/send_email', methods=['POST'])
 def send_email():
@@ -39,6 +48,7 @@ def send_email():
     app.config['MAIL_DEFAULT_SENDER'] = session.get('usermailid')
     sender=session.get('usermailid')
     mail = Mail(app)
+    cur = lock_table()
     if template_selected == 'template1':
         try:
             all_recipient_emails = [] 
@@ -56,9 +66,10 @@ def send_email():
             msg = Message(subject, recipients=all_recipient_emails, sender=sender)
             msg.body = content
             mail.send(msg)
-            cur = mysql.connection.cursor()
+            # cur = mysql.connection.cursor()
+
             cur.execute("INSERT INTO Email (Email_subject, Email_content, DeliveryStatus, Timestamp, SMTP_serveraddress, User_id, Template_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (subject, content, 'Delivered', datetime.now(), 'smtp.gmail.com', 1, 1)) 
+                        (subject, content, 'Delivered', datetime.now(), 'smtp.gmail.com', session['user_id'], 1)) 
             emaillog_id = cur.lastrowid
             for recipient_email in recipient_emails:
                 is_group_email, group_id = is_group(recipient_email) 
@@ -68,13 +79,14 @@ def send_email():
                     recipient_id = fetch_recipient_id(recipient_email)
                     cur.execute("INSERT INTO Individual_receiver(EmailLog_id,Recipient_id) VALUES (%s,%s)",(emaillog_id, recipient_id))
             mysql.connection.commit()
-            cur.close()
+            unlock_table(cur)
+            # cur.close()  
             return 'Email sent successfully!'
         except Exception as e:
             return f'Failed to send email. Error: {str(e)}', 500
     else:
         try:
-            cur = mysql.connection.cursor()
+            # cur = mysql.connection.cursor() 
             all_recipient_emails = []  
             for recipient_email in recipient_emails:
                 is_group_email, group_id = is_group(recipient_email)  
@@ -92,7 +104,7 @@ def send_email():
                 mail.send(msg)
 
             cur.execute("INSERT INTO Email (Email_subject, Email_content, DeliveryStatus, Timestamp, SMTP_serveraddress, User_id, Template_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (subject, content, 'Delivered', datetime.now(), 'smtp.gmail.com', 1, 1))  
+                        (subject, content, 'Delivered', datetime.now(), 'smtp.gmail.com', session['user_id'], 2))  
             emaillog_id = cur.lastrowid
             for recipient_email in recipient_emails:
                 is_group_email, group_id = is_group(recipient_email)  
@@ -102,7 +114,8 @@ def send_email():
                     recipient_id = fetch_recipient_id(recipient_email)
                     cur.execute("INSERT INTO Individual_receiver(EmailLog_id,Recipient_id) VALUES (%s,%s)",(emaillog_id, recipient_id))
             mysql.connection.commit()
-            cur.close()
+            unlock_table(cur) 
+            # cur.close()
             return 'Email sent successfully!'
         except Exception as e:
             return f'Failed to send email. Error: {str(e)}'
@@ -147,32 +160,15 @@ def get_recipient_name(email):
     cur.close()
     return recipient[0] if recipient else ''
 
-# @app.route('/sentEmails')
-# def sent_emails():
-#     cur = mysql.connection.cursor()
-#     usermailid = session.get('usermailid') 
-#     cur.execute("""
-#         SELECT e.EmailLog_id, e.Email_subject, e.Email_content, e.DeliveryStatus, e.Timestamp, 
-#                GROUP_CONCAT(DISTINCT CONCAT(g.group_address, ' (Group)') SEPARATOR ';') AS group_addresses,
-#                GROUP_CONCAT(DISTINCT CONCAT(r.RecipientEmail_id, ' (Individual)') SEPARATOR ';') AS individual_addresses
-#         FROM Email e
-#         LEFT JOIN Group_receiver gr ON e.EmailLog_id = gr.EmailLog_id
-#         LEFT JOIN Email_Group g ON gr.Group_id = g.Group_id
-#         LEFT JOIN Individual_receiver ir ON e.EmailLog_id = ir.EmailLog_id
-#         LEFT JOIN RecipientList r ON ir.Recipient_id = r.Recipient_id
-#         GROUP BY e.EmailLog_id, e.Email_subject, e.Email_content, e.DeliveryStatus, e.Timestamp
-#     """)
-#     emails = cur.fetchall()
-#     cur.close()
-#     return render_template('sentEmails.html', emails=emails,usermailid=usermailid)
-
 @app.route('/sentEmails')
 def sent_emails():
-    user_id = session.get('user_id') 
+    user_id = session.get('user_id')
+    usermailid = session.get('usermailid')  
     if not user_id:
         return "User not logged in", 401  
 
     cur = mysql.connection.cursor()
+    
     try:
         cur.execute("""
             SELECT e.EmailLog_id, e.Email_subject, e.Email_content, e.DeliveryStatus, e.Timestamp, 
@@ -191,7 +187,7 @@ def sent_emails():
         return str(e), 500  
     finally:
         cur.close()
-    return render_template('sentEmails.html', emails=emails)
+    return render_template('sentEmails.html', emails=emails,usermailid=usermailid)
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -200,7 +196,8 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        cur = mysql.connection.cursor()
+        # cur = mysql.connection.cursor()
+        cur = lock_table() 
         cur.execute("SELECT * FROM User WHERE UserEmail_id=%s", [email])
         User = cur.fetchone()
         if User and check_password_hash(User[4], password): 
@@ -209,8 +206,10 @@ def login():
             session['usermailid'] = usermailid
             session.pop('selected_groups', None)
             session.pop('selected_recipients', None)
+            unlock_table(cur) 
             return redirect(url_for('home',usermailid=usermailid))
         else:
+            unlock_table(cur)
             error = 'Invalid Credentials. Please try again.'
             return error
     return render_template('login.html')
@@ -227,12 +226,15 @@ def registration():
         hashed_password = generate_password_hash(password)
         app.logger.info('Received POST request to add User: User_name - %s, UserEmail_id - %s, Role - %s, Passwordhash - %s', username, email, role, hashed_password)
         
-        cur = mysql.connection.cursor()
-
+        # cur = mysql.connection.cursor()
+        cur = lock_table() 
+        cur.execute("SELECT * FROM User WHERE User_ID = %s FOR UPDATE", (session['user_id'],))
+            
         try:
             cur.execute("INSERT INTO User(User_name, UserEmail_id, Role, Passwordhash) VALUES (%s, %s, %s, %s)", (username, email, role, hashed_password))
             mysql.connection.commit()
             app.logger.info('User added successfully: User_name - %s, UserEmail_id - %s, Role - %s, Passwordhash - %s', username, email, role, hashed_password)
+            unlock_table(cur) 
             return redirect(url_for('login'))
         except Exception as e:
             mysql.connection.rollback()
