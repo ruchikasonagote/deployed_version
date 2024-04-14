@@ -1,12 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload File</title>
-</head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4; 
+            margin: 0;
+            padding: 20px;
+        }
 
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        form {
+            background: white; 
+            max-width: 300px; 
+            margin: 50px auto; 
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+            border-radius: 8px; 
+        }
+
+        input[type="file"] {
+            width: 100%; 
+            padding: 8px;
+            margin: 10px 0;
+        }
+
+        button {
+            background-color: #5c67f2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #4a54e1;
+        }
+    </style>
+</head>
 <body>
     <h1>Upload File</h1>
     <form action="/upload?group_id={{ group_id }}" method="post" enctype="multipart/form-data">
@@ -15,5 +55,4 @@
         <button type="submit">Upload</button>
     </form>
 </body>
-
 </html>
