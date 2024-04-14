@@ -55,7 +55,7 @@
         }
     </style>
 </head>
-<body>
+<body> 
     <div class="container">
         <h1>Insert Recipient</h1>
         <form action="/insertRecipient_RL" method="post">
@@ -69,10 +69,13 @@
                 <option value="F">Female</option>
                 <option value="O">Other</option>
             </select>
+            {% if user_role == 'Teaching Assistant' %}
+            <label for="marks">Marks:</label>
+            <input type="number" id="marks" name="marks" min="1" max="999">
+            {% else %}
             <label for="company">Company:</label>
             <input type="text" id="company" name="company">
-            <label for="age">Age:</label>
-            <input type="number" id="age" name="age" min="1" max="999">
+            {% endif %}
             <input type="hidden" id="group_id" name="group_id" value="{{ group_id }}">
             <input type="submit" value="Insert Recipient">
         </form>
