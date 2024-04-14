@@ -1,3 +1,4 @@
+from glob import escape
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from flask_mysqldb import MySQL
 import config
@@ -211,7 +212,7 @@ def login():
         else:
             unlock_table(cur)
             error = 'Invalid Credentials. Please try again.'
-            return error
+            return escape(error)
     return render_template('login.html')
 
 @app.route('/registration', methods=['GET', 'POST'])
