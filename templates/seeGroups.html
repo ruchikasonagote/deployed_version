@@ -126,6 +126,7 @@ th {
       <button onclick="DeleteRecipientLists()">Delete_RL</button>
       <button onclick="RenameRecipientLists()">Rename_RL</button>
       <button class="insert-recipient-btn">Insert_RL</button>
+      <button class="upload-recipient-btn">Upload_RL</button>
     </td>
   </tr>
   
@@ -261,6 +262,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+    const insertButtons = document.querySelectorAll('.upload-recipient-btn');
+
+    insertButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            if (selectedGroupID) {
+                window.location.href = '/uploadfile?group_id=' + selectedGroupID;
+            } else {
+                alert("Please select a group first.");
+            }
+        });
+    });
+});
+
 </script>
     
 </html>
