@@ -77,10 +77,14 @@
                 <option value="F">Female</option>
                 <option value="O">Other</option>
             </select><br>
-            <label for="company">Company:</label>
-            <input type="text" id="company" name="company"><br>
-            <label for="age">Age:</label>
-            <input type="number" id="age" name="age" min="1" max="999"><br>
+
+            {% if user_role == "Teaching Assistant" %}
+                <label for="marks">Marks:</label>
+                <input type="number" id="marks" name="marks"><br>
+            {% elif user_role=="Event Coordinator" %}
+                <label for="company">Company:</label>
+                <input type="text" id="company" name="company"><br>
+            {% endif %}
             <input type="submit" value="Insert Recipient">
         </form>
     </div>
