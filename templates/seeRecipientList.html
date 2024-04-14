@@ -20,7 +20,7 @@
     overflow-x: auto;
 }
 thead {
-    position: sticky; 
+    position: sticky;
     top: 0; 
     background-color: #0056b3;
 }
@@ -33,7 +33,7 @@ th {
     font-weight: normal;
 }
         table {
-            position: relative; 
+            position: relative;
             border-collapse: collapse;
             width: 100%;
             max-width: 800px;
@@ -80,33 +80,35 @@ th {
 </head>
 <body>
     <div class="table-container">
-    <table>
-        <thead>
-            <tr>
-                <th>Select</th>
-                <th>Recipient ID</th>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Gender</th>
-                <th>Company</th>
-                <th>Age</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for recipient in recipients %}
-            <tr>
-                <td><input type="checkbox" class="recipientCheckbox" value="{{ recipient[0] }}"></td>
-                <td>{{ recipient[0] }}</td>
-                <td>{{ recipient[1] }}</td>
-                <td>{{ recipient[2] }}</td>
-                <td>{{ recipient[3] }}</td>
-                <td>{{ recipient[4] }}</td>
-                <td>{{ recipient[5] }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Select</th>
+                    <th>Recipient ID</th>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Gender</th>
+                    {% if user_role == 'Teaching Assistant' %}
+                        <th>Marks</th>
+                    {% elif user_role == 'Event Coordinator' %}
+                        <th>Company</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for recipient in recipients %}
+                <tr>
+                    <td><input type="checkbox" class="recipientCheckbox" value="{{ recipient[0] }}"></td>
+                    <td>{{ recipient[0] }}</td>
+                    <td>{{ recipient[1] }}</td>
+                    <td>{{ recipient[2] }}</td>
+                    <td>{{ recipient[3] }}</td>
+                    <td>{{ recipient[4] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     <div class="button-group">
         <button onclick="deleteRecipients()" id="deleteRecipientBtn">Delete</button>
         <button onclick="insertRecipient()" id="insertRecipientBtn">Insert</button>
@@ -151,3 +153,4 @@ th {
     </script>
 </body>
 </html>
+.
