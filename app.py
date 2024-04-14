@@ -143,24 +143,51 @@ def get_recipient_name(email):
     cur.close()
     return recipient[0] if recipient else ''
 
+# @app.route('/sentEmails')
+# def sent_emails():
+#     cur = mysql.connection.cursor()
+#     usermailid = session.get('usermailid') 
+#     cur.execute("""
+#         SELECT e.EmailLog_id, e.Email_subject, e.Email_content, e.DeliveryStatus, e.Timestamp, 
+#                GROUP_CONCAT(DISTINCT CONCAT(g.group_address, ' (Group)') SEPARATOR ';') AS group_addresses,
+#                GROUP_CONCAT(DISTINCT CONCAT(r.RecipientEmail_id, ' (Individual)') SEPARATOR ';') AS individual_addresses
+#         FROM Email e
+#         LEFT JOIN Group_receiver gr ON e.EmailLog_id = gr.EmailLog_id
+#         LEFT JOIN Email_Group g ON gr.Group_id = g.Group_id
+#         LEFT JOIN Individual_receiver ir ON e.EmailLog_id = ir.EmailLog_id
+#         LEFT JOIN RecipientList r ON ir.Recipient_id = r.Recipient_id
+#         GROUP BY e.EmailLog_id, e.Email_subject, e.Email_content, e.DeliveryStatus, e.Timestamp
+#     """)
+#     emails = cur.fetchall()
+#     cur.close()
+#     return render_template('sentEmails.html', emails=emails,usermailid=usermailid)
+
 @app.route('/sentEmails')
 def sent_emails():
+    user_id = session.get('user_id') 
+    if not user_id:
+        return "User not logged in", 401  
+
     cur = mysql.connection.cursor()
-    usermailid = session.get('usermailid') 
-    cur.execute("""
-        SELECT e.EmailLog_id, e.Email_subject, e.Email_content, e.DeliveryStatus, e.Timestamp, 
-               GROUP_CONCAT(DISTINCT CONCAT(g.group_address, ' (Group)') SEPARATOR ';') AS group_addresses,
-               GROUP_CONCAT(DISTINCT CONCAT(r.RecipientEmail_id, ' (Individual)') SEPARATOR ';') AS individual_addresses
-        FROM Email e
-        LEFT JOIN Group_receiver gr ON e.EmailLog_id = gr.EmailLog_id
-        LEFT JOIN Email_Group g ON gr.Group_id = g.Group_id
-        LEFT JOIN Individual_receiver ir ON e.EmailLog_id = ir.EmailLog_id
-        LEFT JOIN RecipientList r ON ir.Recipient_id = r.Recipient_id
-        GROUP BY e.EmailLog_id, e.Email_subject, e.Email_content, e.DeliveryStatus, e.Timestamp
-    """)
-    emails = cur.fetchall()
-    cur.close()
-    return render_template('sentEmails.html', emails=emails,usermailid=usermailid)
+    try:
+        cur.execute("""
+            SELECT e.EmailLog_id, e.Email_subject, e.Email_content, e.DeliveryStatus, e.Timestamp, 
+                   GROUP_CONCAT(DISTINCT CONCAT(g.group_address, ' (Group)') SEPARATOR ';') AS group_addresses,
+                   GROUP_CONCAT(DISTINCT CONCAT(r.RecipientEmail_id, ' (Individual)') SEPARATOR ';') AS individual_addresses
+            FROM Email e
+            LEFT JOIN Group_receiver gr ON e.EmailLog_id = gr.EmailLog_id
+            LEFT JOIN Email_Group g ON gr.Group_id = g.Group_id
+            LEFT JOIN Individual_receiver ir ON e.EmailLog_id = ir.EmailLog_id
+            LEFT JOIN RecipientList r ON ir.Recipient_id = r.Recipient_id
+            WHERE e.User_id = %s
+            GROUP BY e.EmailLog_id, e.Email_subject, e.Email_content, e.DeliveryStatus, e.Timestamp
+        """, (user_id,))
+        emails = cur.fetchall()
+    except Exception as e:
+        return str(e), 500  
+    finally:
+        cur.close()
+    return render_template('sentEmails.html', emails=emails)
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -275,7 +302,11 @@ def recipient_list():
     recipients=[]
     if user_role == 'Teaching Assistant':
         cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM TeachingAssistantRecipientList WHERE user_id = %s", (user_id,))
+        cur.execute("""
+                SELECT Recipient_id, RecipientEmail_id, Recipient_name, Gender, Marks 
+                FROM RecipientList 
+                WHERE user_id = %s
+            """, (user_id,))
         recipients = cur.fetchall()
         cur.close()
         
@@ -283,7 +314,11 @@ def recipient_list():
 
     elif user_role == 'Event Coordinator':
         cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM EventCoordinatorRecipientList WHERE user_id = %s", (user_id,))
+        cur.execute("""
+                SELECT Recipient_id, RecipientEmail_id, Recipient_name, Gender, Company 
+                FROM RecipientList 
+                WHERE user_id = %s
+            """, (user_id,))
         recipients = cur.fetchall()
         cur.close()
         return render_template('seeRecipientList.html', recipients=recipients, user_role=user_role)
@@ -292,37 +327,50 @@ def recipient_list():
 
 @app.route('/seeGroups')
 def groups():
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT Group_id, Group_name FROM Email_Group")
-    groups = cur.fetchall()
+    user_id = session.get('user_id') 
+    if not user_id:
+        return "User not logged in", 401  
 
-    group_details = {}
-    user_role = get_user_role()  
-
-    for group in groups:
-        group_id = group[0]
-        if user_role == "Teaching Assistant":
-            cur.execute("""
-                SELECT RecipientList.Recipient_id, RecipientList.RecipientEmail_id, RecipientList.Recipient_name, RecipientList.Gender, RecipientList.Marks 
-                FROM RecipientList 
-                JOIN Memberof ON RecipientList.Recipient_id = Memberof.Recipient_id 
-                WHERE Memberof.Group_id = %s
-            """, (group_id,))
-            group_details[group_id] = cur.fetchall()
-        else:
-            cur.execute("""
-                SELECT RecipientList.Recipient_id, RecipientList.RecipientEmail_id, RecipientList.Recipient_name, RecipientList.Gender, RecipientList.Company 
-                FROM RecipientList 
-                JOIN Memberof ON RecipientList.Recipient_id = Memberof.Recipient_id 
-                WHERE Memberof.Group_id = %s
-            """, (group_id,))
-            group_details[group_id] = cur.fetchall()
-
+    user_role = get_user_role()
     if user_role is None:
-        return render_template('error.html', message="Failed to retrieve user role")
+        return "Failed to retrieve user role", 403 
+    query = """
+        SELECT Group_id, Group_name 
+        FROM Email_Group
+        WHERE User_id = %s
+    """
+    try:
+        with mysql.connection.cursor() as cur:
+            cur.execute(query, (user_id,))
+            groups = cur.fetchall()
 
-    return render_template('seeGroups.html', groups=groups, group_details=group_details, user_role=user_role)
+            group_details = {}
+            for group in groups:
+                group_id = group[0]
+                if user_role == "Teaching Assistant":
+                    detail_query = """
+                        SELECT RecipientList.Recipient_id, RecipientList.RecipientEmail_id, RecipientList.Recipient_name, RecipientList.Gender, RecipientList.Marks 
+                        FROM RecipientList 
+                        JOIN Memberof ON RecipientList.Recipient_id = Memberof.Recipient_id 
+                        WHERE Memberof.Group_id = %s
+                    """
+                elif user_role == "Event Coordinator":
+                    detail_query = """
+                        SELECT RecipientList.Recipient_id, RecipientList.RecipientEmail_id, RecipientList.Recipient_name, RecipientList.Gender, RecipientList.Company 
+                        FROM RecipientList 
+                        JOIN Memberof ON RecipientList.Recipient_id = Memberof.Recipient_id 
+                        WHERE Memberof.Group_id = %s
+                    """
+                else:
+                    return "Unauthorized access", 403  
 
+                cur.execute(detail_query, (group_id,))
+                group_details[group_id] = cur.fetchall()
+
+            return render_template('seeGroups.html', groups=groups, group_details=group_details, user_role=user_role)
+    except Exception as e:
+        return str(e), 500  
+    
 @app.route('/delete-groups', methods=['POST'])
 def delete_groups():
     data = request.get_json()
@@ -332,7 +380,6 @@ def delete_groups():
     placeholders = ','.join(['%s'] * len(group_ids))
 
     memberof_query = "DELETE FROM Memberof WHERE Group_id IN ({})".format(placeholders)
-
     email_group_query = "DELETE FROM Email_Group WHERE Group_id IN ({})".format(placeholders)
 
     cur = mysql.connection.cursor()
@@ -397,7 +444,7 @@ def CEG():
         selected_groups = request.form.getlist('selected_groups')
         return render_template('home.html', selected_groups=selected_groups)
     cur = mysql.connection.cursor()
-    cur.execute("SELECT Group_id, Group_name, group_address FROM Email_Group")
+    cur.execute("SELECT Group_id, Group_name, group_address FROM Email_Group WHERE User_id = %s", (session['user_id'],))
     groups = cur.fetchall()
     cur.close()
     return render_template('chooseExistedGroups.html', groups=groups)
@@ -405,7 +452,7 @@ def CEG():
 @app.route('/chooseRecipientList', methods=['GET', 'POST'])
 def CRL():
     cur = mysql.connection.cursor()
-    cur.execute("SELECT Recipient_id, Recipient_name, RecipientEmail_id FROM RecipientList")
+    cur.execute("SELECT Recipient_id, Recipient_name, RecipientEmail_id FROM RecipientList WHERE user_id = %s", (session['user_id'],))
     recipients = cur.fetchall()
     cur.close()
     return render_template('chooseRecipientList.html', recipients=recipients)
@@ -499,18 +546,20 @@ def insert_recipient_RL():
     if user_role == "Teaching Assistant":
         marks = request.form['marks']
         company = None
-    else:
+    elif user_role == "Event Coordinator":
         marks = None
         company = request.form['company']
+    else:
+        return jsonify({'error': 'Unauthorized role'}), 403
 
     group_id = request.form['group_id'] 
 
     try:
         cur = mysql.connection.cursor()
-        if user_role == "Teaching Assitant":
+        if user_role == "Teaching Assistant":
             cur.execute("INSERT INTO RecipientList (RecipientEmail_id, User_id, Recipient_name, Gender, Marks) VALUES (%s, %s, %s, %s, %s)",
                         (recipient_email, session['user_id'], recipient_name, gender, marks))
-        else:
+        elif user_role == "Event Coordinator":
             cur.execute("INSERT INTO RecipientList (RecipientEmail_id, User_id, Recipient_name, Gender, Company) VALUES (%s, %s, %s, %s, %s)",
                         (recipient_email, session['user_id'], recipient_name, gender, company))
         
@@ -533,20 +582,20 @@ def insert_group_page():
 def insert_group():
     if 'user_id' not in session:
         return jsonify({'error': 'User not logged in'}), 401
+    user_id = session['user_id']
 
     Group_name = request.form['Group_name']
-    group_address =request.form['group_address']
+    group_address = request.form['group_address']
+
     try:
-        cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO Email_Group (Group_name,group_address) VALUES (%s,%s)",
-                    (Group_name,group_address))
-        mysql.connection.commit()
-        return redirect(url_for('home'))
+        with mysql.connection.cursor() as cur:
+            cur.execute("INSERT INTO Email_Group (Group_name, group_address, User_id) VALUES (%s, %s, %s)",
+                        (Group_name, group_address, user_id))
+            mysql.connection.commit()
+            return redirect(url_for('home'))
     except Exception as e:
-        mysql.connection.rollback()
+        mysql.connection.rollback()  # Ensures that any error does not affect the database integrity
         return jsonify({'error': str(e)}), 500
-    finally:
-        cur.close()
 
 if __name__ == '__main__':
     app.run(debug=True)
