@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Account</title>
+
     <style>
         body {
             font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
             margin: 0;
             padding: 0;
-            background-color: #f0f0f0;
         }
-
         .container {
             max-width: 400px;
             margin: 50px auto;
@@ -20,44 +20,42 @@
             border-radius: 8px;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
         }
-
         h2 {
             text-align: center;
         }
-
         .form-group {
             margin-bottom: 20px;
         }
-
         label {
             display: block;
             font-weight: bold;
         }
-
-        input[type="text"],
-        input[type="email"],
-        input[type="password"],
-        select {
+        input[type="text"], input[type="email"], input[type="password"], select {
             width: 100%;
             padding: 10px;
             font-size: 16px;
             border: 1px solid #ccc;
             border-radius: 5px;
-            box-sizing: border-box; 
+            box-sizing: border-box;
         }
-
-        button {
+        button, .google-button {
             width: 100%;
             padding: 10px;
             font-size: 16px;
             background-color: #007bff;
-            color: #fff;
+            color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            margin-top: 10px;
         }
-
-        button:hover {
+        button:hover, .google-button:hover {
+            background-color: #0056b3;
+        }
+        .google-button {
+            background-color: #007bff; 
+        }
+        .google-button:hover {
             background-color: #0056b3;
         }
     </style>
@@ -78,7 +76,7 @@
                 <label for="role">Role:</label>
                 <select id="role" name="role" required>
                     <option value="">Select Role</option>
-                    <option value="TA">Teaching Assistant (TA)</option>
+                    <option value="Teaching Assistant">Teaching Assistant</option>
                     <option value="Event Coordinator">Event Coordinator</option>
                 </select>
             </div>
@@ -88,6 +86,6 @@
             </div>
             <button type="submit">Create Account</button>
         </form>
-    </div>
+    </div>        
 </body>
 </html>
