@@ -10,7 +10,21 @@
     margin: 0;
     padding: 0;
   }
+  thead {
+    position: sticky; 
+    top: 0; 
+    background-color: #0056b3;
+}
+
+th {
+    text-align: left;
+    padding: 16px;
+    border-bottom: 1px solid #ddd;
+    color: #fff;
+    font-weight: normal;
+}
   table {
+    position:relative;
     width: 90%;
     border-collapse: collapse;
     margin: 20px auto;
@@ -64,7 +78,6 @@
 </style>
 </head>
 <body>
-
 <table>
   <thead>
     <tr>
@@ -80,7 +93,6 @@
         <td>{{ group[0] }}</td>
         <td>{{ group[1] }}</td>
     </tr>
-  
 <tr class="group-details" id="group-details-{{ group[0] }}" style="display: none;">
     <td colspan="3"> 
       <table>
@@ -91,7 +103,11 @@
             <th>Recipient Email</th>
             <th>Name</th>
             <th>Gender</th>
-            <th>Age</th>
+            {% if user_role == 'Teaching Assistant' %}
+            <th>Marks</th>
+            {% elif user_role == 'Event Coordinator' %}
+            <th>Company</th>
+            {% endif %}
           </tr>
         </thead>
         <tbody>
@@ -245,9 +261,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
-// </script>
-
-
-    </script>
+</script>
     
 </html>
