@@ -35,7 +35,7 @@
     <table id="sentEmailTable">
         <thead>
             <tr>
-                <!-- <th>Select</th> -->
+                <th>Select</th>
                 <th>From Address</th>
                 <th>To Addresses</th>
                 <th>Subject</th>
@@ -45,15 +45,15 @@
         </thead>
         <tbody>
             {% for email in emails %}
-            <!-- <tr onclick="openEmail('{{ email[1] }}', '{{ email[2] }}')"> -->
-                <!-- <td><input type = "checkbox" class = "emailcheckbox"> </td> -->
+            <tr onclick="openEmail('{{ email[1] }}', '{{ email[2] }}')">
+                <td><input type = "checkbox" class = "emailcheckbox"> </td>
                 <td>{{usermailid}}</td>
                 <td>{{ email[5] }}, {{ email[6] }}</td>
                 <td>{{ email[1] }}</td>
                 <td>{{ email[4] }}</td>
                 <td>{{ email[3] }}</td>
                 <td style="display: none;">{{ email[2] }}</td>
-            <!-- </tr> -->
+            </tr>
             {% endfor %}
         </tbody>
     </table>
